@@ -1,9 +1,14 @@
 # Plan morning-digest § 3 and § 4: publish the digest preview to GitHub Pages.
 # The HTML is built here and never committed (ADR 0003: no previews in the repo).
-# The banner shows the repo variable LANE_MARKER; unset it and run again to take the marker off.
+# The banner shows LANE_MARKER (repo variable or secret). Run with "marker" unchecked to take it off.
 name: preview
 on:
   workflow_dispatch:
+    inputs:
+      marker:
+        description: "Show the lane marker (uncheck for the clean-up run, plan § 4)"
+        type: boolean
+        default: true
 permissions:
   contents: read
   pages: write
@@ -30,9 +35,13 @@ jobs:
       - name: Write .env
         run: |
           cp .env.example .env
-          sed -i "s/^LANE_MARKER=.*/LANE_MARKER=${LANE_MARKER}/" .env
+          if [ "$WITH_MARKER" = "true" ]; then
+            if [ -z "$LANE_MARKER" ]; then echo "LANE_MARKER is not set (repo variable or secret)"; exit 1; fi
+            sed -i "s/^LANE_MARKER=.*/LANE_MARKER=${LANE_MARKER}/" .env
+          fi
         env:
-          LANE_MARKER: ${{ vars.LANE_MARKER }}
+          WITH_MARKER: ${{ inputs.marker }}
+          LANE_MARKER: ${{ vars.LANE_MARKER || secrets.LANE_MARKER }}
       - run: scripts/save-preview.sh /digest/2026-10-28 _site/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
